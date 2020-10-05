@@ -108,8 +108,46 @@ export class CartService {
               ? this.cartDataServer.data[index].numInCart++
               : prod.quantity;
           }
+          this.cartDataClient.prodData[index].incart = this.cartDataServer.data[
+            index
+          ].numInCart;
+        } else {
+          this.cartDataServer.data.push({
+            numInCart: 1,
+            product: prod,
+          });
+          this.cartDataClient.prodData.push({
+            incart: 1,
+            id: prod.id,
+          });
+          this.cartDataClient.total = this.cartDataServer.total;
+          localStorage.setItem("cart", JSON.stringify(this.cartDataClient));
+          this.cartData$.next({ ...this.cartDataServer });
         }
       }
     });
+  }
+  UpdateCartItems(index: number, increase: boolean) {
+    let data = this.cartDataServer.data[index];
+
+    if (increase) {
+      data.numInCart < data.product.quantity
+        ? data.numInCart++
+        : data.product.quantity;
+      this.cartDataClient.prodData[index].incart = data.numInCart;
+      this.cartDataClient.total = this.cartDataServer.total;
+      localStorage.setItem("cart", JSON.stringify(this.cartDataClient));
+      this.cartData$.next({ ...this.cartDataServer });
+    } else {
+      data.numInCart--;
+      if (data.numInCart < 1) {
+        this.cartData$.next({ ...this.cartDataServer });
+      } else {
+        this.cartData$.next({ ...this.cartDataServer });
+        this.cartDataClient.prodData[index].incart = data.numInCart;
+        this.cartDataClient.total = this.cartDataServer.total;
+        localStorage.setItem("cart", JSON.stringify(this.cartDataClient));
+      }
+    }
   }
 }
