@@ -61,7 +61,7 @@ export class CartService {
         this.productService
           .getSingleProduct(p.id)
           .subscribe((actualProductInfo: ProductModelServer) => {
-            if (this.cartDataServer.data[0].numInCart !== 0) {
+            if (this.cartDataServer.data[0].numInCart === 0) {
               this.cartDataServer.data[0].numInCart = p.incart;
               this.cartDataServer.data[0].product = actualProductInfo;
               //TODO Create CalculateTotal Function and replace it here
@@ -81,5 +81,35 @@ export class CartService {
           });
       });
     }
+  }
+  AddProductToCart(id: number, quantity: number) {
+    this.productService.getSingleProduct(id).subscribe((prod) => {
+      if (this.cartDataServer.data[0].product === undefined) {
+        this.cartDataServer.data[0].product = prod;
+        this.cartDataServer.data[0].numInCart =
+          quantity !== undefined ? quantity : 1;
+        this.cartDataClient.prodData[0].incart = this.cartDataServer.data[0].numInCart;
+        this.cartDataClient.prodData[0].id = prod.id;
+        this.cartDataClient.total = this.cartDataServer.total;
+        localStorage.setItem("cart", JSON.stringify(this.cartDataClient));
+        this.cartData$.next({ ...this.cartDataServer });
+      } else {
+        let index = this.cartDataServer.data.findIndex(
+          (p) => p.product.id === prod.id
+        );
+        if (index !== -1) {
+          if (quantity !== undefined && quantity <= prod.quantity) {
+            this.cartDataServer.data[index].numInCart =
+              this.cartDataServer.data[index].numInCart < prod.quantity
+                ? quantity
+                : prod.quantity;
+          } else {
+            this.cartDataServer.data[index].numInCart < prod.quantity
+              ? this.cartDataServer.data[index].numInCart++
+              : prod.quantity;
+          }
+        }
+      }
+    });
   }
 }
