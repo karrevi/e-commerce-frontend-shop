@@ -5,7 +5,7 @@ import { OrderService } from "./order.service";
 import { environment } from "src/environments/environment";
 import { CartModelPublic, CartModelServer } from "../models/cart.model";
 import { BehaviorSubject } from "rxjs";
-import { Router } from "@angular/router";
+import { NavigationExtras, Router } from "@angular/router";
 import { ProductModelServer } from "../models/product.model";
 
 @Injectable({ providedIn: "root" })
@@ -150,4 +150,106 @@ export class CartService {
       }
     }
   }
+  DeleteProductFromCart(index: number) {
+    if (window.confirm("Are you sure you want to remove the item")) {
+      this.cartDataServer.data.splice(index, 1);
+      this.cartDataClient.prodData.splice(index, 1);
+      //TODO CALCULATE TOTAL AMOUNT
+      this.cartDataClient.total = this.cartDataServer.total;
+      if (this.cartDataClient.total === 0) {
+        this.cartDataClient = { total: 0, prodData: [{ incart: 0, id: 0 }] };
+        localStorage.setItem("cart", JSON.stringify(this.cartDataClient));
+      } else {
+        localStorage.setItem("cart", JSON.stringify(this.cartDataClient));
+      }
+      if (this.cartDataServer.total === 0) {
+        this.cartDataServer = {
+          total: 0,
+          data: [{ numInCart: 0, product: undefined }],
+        };
+        this.cartData$.next({ ...this.cartDataServer });
+      } else {
+        this.cartData$.next({ ...this.cartDataServer });
+      }
+    } else {
+      return;
+    }
+  }
+  private CalculateTotal() {
+    let Total = 0;
+
+    this.cartDataServer.data.forEach((p) => {
+      const { numInCart } = p;
+      const { price } = p.product;
+
+      Total += numInCart * price;
+    });
+    this.cartDataServer.total = Total;
+    this.cartTotal$.next(this.cartDataServer.total);
+  }
+  private CheckoutFromCart(userId: number) {
+    this.http
+      .post(`${this.serverURl}/orders/payment`, null)
+      .subscribe((res: { success: boolean }) => {
+        if (res.success) {
+          this.resetServerData();
+          this.http
+            .post(`${this.serverURl}/orders/new`, {
+              userId: userId,
+              products: this.cartDataClient.prodData,
+            })
+            .subscribe((data: OrderResponse) => {
+              this.orderService.getSingleOrder(data.order_id).then((prods) => {
+                if (data.success) {
+                  const navigationExtras: NavigationExtras = {
+                    state: {
+                      message: data.message,
+                      products: prods,
+                      orderId: data.order_id,
+                      total: this.cartDataClient.total,
+                    },
+                  };
+                  // TODO HIDE SPINNER
+                  this.router
+                    .navigate(["/thankyou"], navigationExtras)
+                    .then((p) => {
+                      this.cartDataClient = {
+                        total: 0,
+                        prodData: [{ incart: 0, id: 0 }],
+                      };
+                      this.cartTotal$.next(0);
+                      localStorage.setItem(
+                        "cart",
+                        JSON.stringify(this.cartDataClient)
+                      );
+                    });
+                }
+              });
+            });
+        }
+      });
+  }
+  private resetServerData() {
+    this.cartDataServer = {
+      total: 0,
+      data: [
+        {
+          numInCart: 0,
+          product: undefined,
+        },
+      ],
+    };
+    this.cartData$.next({ ...this.cartDataServer });
+  }
+}
+interface OrderResponse {
+  order_id: number;
+  success: boolean;
+  message: string;
+  products: [
+    {
+      id: string;
+      numInCart: string;
+    }
+  ];
 }
