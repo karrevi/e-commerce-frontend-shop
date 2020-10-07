@@ -1,14 +1,14 @@
 import { Component, OnInit } from "@angular/core";
-import { Router } from "@angular/router";
+import { ProductService } from "src/app/services/product.service";
 import {
   ProductModelServer,
   ServerResponse,
 } from "src/app/models/product.model";
 import { CatService } from "src/app/services/cat.service";
-import { ProductService } from "src/app/services/product.service";
+import { Router } from "@angular/router";
 
 @Component({
-  selector: "app-home",
+  selector: "mg-home",
   templateUrl: "./home.component.html",
   styleUrls: ["./home.component.css"],
 })
@@ -21,15 +21,16 @@ export class HomeComponent implements OnInit {
     private router: Router
   ) {}
 
-  ngOnInit(): void {
-    this.productService.getAllProducts().subscribe((prods: ServerResponse) => {
+  ngOnInit() {
+    this.productService.getAllProducts(8).subscribe((prods: ServerResponse) => {
       this.products = prods.products;
+      console.log(this.products);
     });
+  }
+  AddProduct(id: any) {
+    this.catService.AddProductToCart(id);
   }
   selectProduct(id: Number) {
     this.router.navigate(["/product", id]).then();
-  }
-  AddToCart(id: any) {
-    this.catService.AddProductToCart(id);
   }
 }
